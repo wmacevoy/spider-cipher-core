@@ -9,16 +9,16 @@ LDLIBS=-lm
 
 .PHONY: all
 
-all : tests/spider_cipher_core_facts
+all : bin/spider_cipher_core_facts
 
-tests/spider_cipher_core_facts : src/spider_cipher_core.c include/spider_cipher_core.h tests/spider_cipher_core_facts.c tests/facts.h tests/facts.c
-	$(CC) -o tests/spider_cipher_core_facts $(CFLAGS) $(LDFLAGS) src/spider_cipher_core.c tests/spider_cipher_core_facts.c tests/facts.c $(LDLIBS)
+bin/spider_cipher_core_facts : src/spider_cipher_core.c include/spider_cipher_core.h tests/spider_cipher_core_facts.c tests/facts.h tests/facts.c
+	mkdir -p bin
+	$(CC) -o bin/spider_cipher_core_facts $(CFLAGS) $(LDFLAGS) src/spider_cipher_core.c tests/spider_cipher_core_facts.c tests/facts.c $(LDLIBS)
 
 .PHONY: check
 check : all
-	bin/spider_cipher_facts | diff - expected/spider_cipher_facts.out
+	bin/spider_cipher_core_facts | diff - tests/spider_cipher_core_facts.out
 
 .PHONY: expected
 expected : all
-	mkdir -p expected
-	bin/spider_cipher_facts >expected/spider_cipher_facts.out
+	bin/spider_cipher_core_facts >tests/spider_cipher_core_facts.out
