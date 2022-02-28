@@ -9,6 +9,41 @@ extern "C" {
 #define SPIDER_CIPHER_CARDS   40
 
   //
+  // Spider Cipher Core is just the cipher.
+  //
+  // It does not translate and it does not place a
+  // translated message in a packet.
+  //
+  // Showing the security of the core cipher is relatively
+  // expensive, so leaving these as isolated parts facilitates
+  // the tests of the core cipher.
+  // 
+  // SpiderCipherCard key(unit8_t at, void *misc)  { return key cards 0..39 }
+  // SpiderCipherCard packet[]  { current packet }
+  // 
+  // SpiderCipherDeck deck,spare;
+  // SpiderCipherDeckInitBy(&deck,key,NULL);
+  // SpiderCipherDeckInit(&spare);
+  //
+  // for (int i=0; i<packetSize; ++i) {
+  //    SpiderCipherCard clear,scrambled;
+  //    if (scrambling) {
+  //       clear = packet[i];
+  //       scrambled = SpiderCipherScramble(&deck,clear);
+  //       packet[i] = scrambled;
+  //    } else if (unscrambling) {
+  //       scrambled = packet[i];
+  //       clear = SpiderCipherUnscramble(&deck,scrambled);
+  //       packet[i] = clear;
+  //    }
+  //    SpiderCipherAdvance(&deck,clear,&spare);
+  // }
+  //
+  // SpiderCiperDeckInit(&deck);
+  // SpiderCiperDeckInit(&spare);  
+  //
+
+  //
   // A SpiderCipherCard is in the range 0...39
   //
   typedef uint8_t SpiderCipherCard;
@@ -34,22 +69,12 @@ extern "C" {
   //
   // RETURN VALUE
   //  1 - Deck was properly initialized.
-  //  0 - f(at,misc) is out of 00..39 or repeats a value.
+  //  0 - f(at,misc) is out of 0..39 or repeats a value.
   //
   int SpiderCipherDeckInitBy(SpiderCipherDeck *deck,
-			 SpiderCipherCard (*f)(uint8_t at, void *misc),
-			 void *misc);
+			     SpiderCipherCard (*f)(uint8_t at, void *misc),
+			     void *misc);
 
-  uint8_t SpiderCipherFindCard(SpiderCipherDeck *deck, SpiderCipherCard card);
-  
-  // tag card = ((3rd card of deck) - 1) mod 40
-  // noise card = card after (wrapping to front) tag card in deck
-  SpiderCipherCard SpiderCipherNoiseCard(SpiderCipherDeck *deck);
-
-  // cut card = (1st card of deck) + (clear/unscrambled card of packet) mod 40
-  SpiderCipherCard SpiderCipherCutCard(SpiderCipherDeck *deck,
-				       SpiderCipherCard clear);
-  
   // scrambled = (clear + noise) mod 40
   SpiderCipherCard SpiderCipherScramble(SpiderCipherDeck *deck,
 					SpiderCipherCard  clear);
@@ -58,13 +83,12 @@ extern "C" {
   SpiderCipherCard SpiderCipherUnscramble(SpiderCipherDeck *deck,
 					 SpiderCipherCard scrambled);
 
-  void SpiderCipherCutDeck(SpiderCipherDeck *inputDeck,
-			   SpiderCipherCard cutCard,
-			   SpiderCipherDeck *outputDeck);
+  // Adjust deck for next scramble/unscramble of packet.
+  // Spare should be set back to 0,..,39 after final use.
+  void SpiderCipherAdvance(SpiderCipherDeck *deck,
+			   SpiderCipherCard clear,
+			   SpiderCipherDeck *spare);
 
-  void SpiderCipherBackFrontShuffleDeck(SpiderCipherDeck *inputDeck,
-					SpiderCipherDeck *outputDeck);
-  
 #ifdef __cplusplus
 }
 #endif

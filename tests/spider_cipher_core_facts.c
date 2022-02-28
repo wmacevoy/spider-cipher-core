@@ -7,7 +7,14 @@
 #include <arpa/inet.h>
 
 #include "facts.h"
-#include "spider_cipher_core.h"
+
+//
+// Unusual, but this tests the "private" static components
+// of the cipher.  The exposed API limits potential incorrect
+// use of the cipher.
+//
+
+#include "../src/spider_cipher_core.c"
 
 #define CARDS SPIDER_CIPHER_CARDS
 #define CUT_ZTH 0
@@ -34,7 +41,6 @@ int cardsCmp(int n,Card *a, Card *b) {
   }
   return 0;
 }
-
 
 int deckCmp(Deck *a, Deck *b) {
   deckOk(a);
@@ -81,20 +87,27 @@ const Permutation BACK_FRONT = {39,37,35,33,31,29,27,25,23,21,
 
 
 //
-// 40*41 test permutations
+// a = 1..40 x b = 0..40  test permutations
 //
 void samplePermutation(Permutation p, int a,int b) {
   assert(a > 0 && a < 41);
   assert(b >= 0 && b < 41);
-  int i=0;
-  int c=0;
-  while (c < CARDS) {
-    int x = (a*i+b) % 41;
-    if (x < CARDS) {
-      p[c]=x;
-      ++c;
+  int skip=0;
+  
+  // <= is ok here: 1 case is always skipped
+  for (int at=0; at<=CARDS; ++at) {
+    //
+    // Because 41 is prime x is guaranteed to be a permutation
+    // of 0..40 as at=0..40.
+    // This skips the x=40 case to make a permutation of 0..39
+    //
+    int x=(a*at+b) % 41;
+    if (x == 40) {
+      skip = 1;
+    } else {
+      p[at-skip]=x;
     }
-    ++i;
+    x = (x+a) % 41;
   }
 }
 
@@ -106,7 +119,6 @@ void sampleBadPermutation(Permutation p, int a,int b) {
     p[p[1]]=p[2]+CARDS;
   }
 }
-
 
 void deckSet(Deck *deck, const Permutation permutation) {
   for (int i=0; i<CARDS; ++i) {
@@ -125,14 +137,13 @@ void permute(const Permutation permutation, Deck *in, Deck *out) {
   deckOk(out);  
 }
 
-void sampleShuffle(int a, int b, Deck *in, Deck *out) {
-  Permutation p;
-  
-  samplePermutation(p,a,b);
-  permute(p,in,out);
+void deckMix(Deck *deck, const Permutation permutation) {
+  Deck spare;
+  permute(permutation,deck,&spare);
+  permute(ID,&spare,deck);
 }
 
-void testInit(Deck *deck) {
+void testDeckInit(Deck *deck) {
   SpiderCipherDeckInit(deck);
   for (int i=0; i<CARDS; ++i) {
     assert(deck->cards[i]==i);
@@ -140,13 +151,9 @@ void testInit(Deck *deck) {
   }
 }
 
-FACTS(Init) {
+FACTS(DeckInit) {
   Deck deck;
-  SpiderCipherDeckInit(&deck);
-  for (int i=0; i<CARDS; ++i) {
-    FACT(deck.cards[i],==,i);
-    FACT(deck.ats[i],==,i);    
-  }
+  testDeckInit(&deck);
 }
 
 uint8_t pf(uint8_t at, void *misc) {
@@ -174,6 +181,7 @@ int testInitBy(Deck *deck, Card (*f)(uint8_t at, void *misc),void *misc) {
       expectStatus = 0;
     }
   }
+  
   int status = SpiderCipherDeckInitBy(deck,pf,&p);
   assert(status == expectStatus);
   if (status) {
@@ -305,238 +313,317 @@ FACTS(CutDeck) {
   }
 }
 
-#if 0
+void CutDeckAt(Deck *in, uint8_t cutAt, Deck *out) {
+  Card cutCard=in->cards[cutAt % CARDS];
+  SpiderCipherCutDeck(in,cutCard,out);
+}
+
+
+FACTS(CutDeckAt) {
+  for (int a=1; a <= CARDS; ++a) {
+    for (int b=0; b <= CARDS; ++b) {
+      for (int cutAt=0; cutAt < CARDS; ++cutAt) {      
+	Deck deck,spare;
+	sampleDeck(&deck,a,b);
+	CutDeckAt(&deck,cutAt,&spare);
+	FACT(deck.cards[cutAt],==,spare.cards[0]);
+      }
+    }
+  }
+}
+
+void InverseCutDeckAt(Deck *in, uint8_t cutAt, Deck *out) {
+  CutDeckAt(in,(CARDS-cutAt)%CARDS,out);
+}
+
+
+FACTS(InverseCutDeckAt) {
+  for (int a=1; a <= CARDS; ++a) {
+    for (int b=0; b <= CARDS; ++b) {
+      for (int cutAt=0; cutAt < CARDS; ++cutAt) {      
+	Deck original,deck,spare;
+	sampleDeck(&original,a,b);
+	sampleDeck(&deck,a,b);
+	CutDeckAt(&deck,cutAt,&spare);
+	if (cutAt == 0) {
+	  FACT(deckCmp(&spare,&original),==,0);
+	} else {
+	  FACT(deckCmp(&spare,&original),!=,0);
+	}
+	InverseCutDeckAt(&spare,cutAt,&deck);	
+	FACT(deckCmp(&deck,&original),==,0);
+      }
+    }
+  }
+}
+
+void BackFrontUnshuffleDeck(Deck *in, Deck *out) {
+  for (int i=0; i<CARDS; ++i) {
+    out->cards[BACK_FRONT[i]]=in->cards[i];
+  }
+  for (int i=0; i<CARDS; ++i) {
+    out->ats[out->cards[i]]=i;
+  }
+}
 
 
 FACTS(BackFrontUnshuffle) {
-  Deck deck;
-  Deck tmp;
-  Deck id;
-  deckInit(deck);
-  deckInit(tmp);
-  deckInit(id);
-  deckBackFrontShuffle(deck,tmp);
-  for (int i=0; i<CARDS; ++i) deck[i]=0;
-  deckBackFrontUnshuffle(tmp,deck);
-  DECK_EQ(deck,id);
+  for (int a=1; a <= CARDS; ++a) {
+    for (int b=0; b <= CARDS; ++b) {
+      Deck deck,shuffled,unshuffled;
+      sampleDeck(&deck,a,b);
+      SpiderCipherBackFrontShuffleDeck(&deck,&shuffled);
+      FACT(deckCmp(&deck,&shuffled),!=,0);      
+      BackFrontUnshuffleDeck(&shuffled,&unshuffled);
+      FACT(deckCmp(&deck,&unshuffled),==,0);
+    }
+  }
 }
 
-// pseudo-shuffle on cut location c
-void P(Deck deck,int c) {
-  Deck tmp;
-  deckCut(deck,c,tmp);
-  deckBackFrontShuffle(tmp,deck);
+void PseudoShuffleCutAt(Deck *deck, uint8_t cutAt) {
+  Deck spare;
+  SpiderCipherCutDeck(deck,deck->cards[cutAt%CARDS],&spare);
+  SpiderCipherBackFrontShuffleDeck(&spare,deck);
+}
+
+void InversePseudoShuffleCutAt(Deck *deck, uint8_t cutAt) {
+  Deck spare;
+  BackFrontUnshuffleDeck(deck,&spare);
+  SpiderCipherCutDeck(&spare,spare.cards[(CARDS-cutAt)%CARDS],deck);
+}
+
+FACTS(InversePseudoShuffleCutAt) {
+  for (int cutAt=0; cutAt<CARDS; ++cutAt) {
+    Deck id,deck;
+    SpiderCipherDeckInit(&id);
+    SpiderCipherDeckInit(&deck);
+
+    PseudoShuffleCutAt(&deck,cutAt);
+    FACT(deckCmp(&deck,&id),!=,0);
+    InversePseudoShuffleCutAt(&deck,cutAt);
+    FACT(deckCmp(&deck,&id),==,0);
+  }
+}
+
+// pseudo-shuffle on cut at location cutAt
+void P(Deck *deck,int cutAt) {
+  PseudoShuffleCutAt(deck,cutAt);
+}
+
+void pd(Deck *deck) {
+  for (int i=0; i < CARDS; ++i) {
+    printf(" %02d",deck->cards[i]);
+    if (i % 10 == 9) printf("\n");
+  }
 }
 
 FACTS(P) {
-  for (int c=0; c<CARDS; ++c) {
-    Deck a;
-    Deck b;
-    deckInit(a);
-    deckInit(b);
-    deckPseudoShuffle(a,c);
-    P(b,c);
-    DECK_EQ(a,b);
+  for (int a=1; a <= CARDS; ++a) {
+    for (int b=0; b <= CARDS; ++b) {
+      for (int cutAt=0; cutAt<CARDS; ++cutAt) {
+	Deck deck,spare,expect;
+	sampleDeck(&deck,a,b);
+	CutDeckAt(&deck,cutAt,&spare);
+	permute(BACK_FRONT,&spare,&expect);
+	P(&deck,cutAt);
+	FACT(deckCmp(&deck,&expect),==,0);
+      }
+    }
   }
 }
 
 FACTS(PReachable) {
-  for (int c=0; c<CARDS; ++c) {
+  for (int cutAt=0; cutAt<CARDS; ++cutAt) {
     Deck p;
-    deckInit(p);
-    P(p,c);
+    SpiderCipherDeckInit(&p);
+    P(&p,cutAt);
     
-    Deck reach;
-    deckInit(reach);
-    deckPseudoShuffle(reach,c);
+    Deck reach,spare;
+    SpiderCipherDeckInit(&reach);
+    SpiderCipherCutDeck(&reach,reach.cards[cutAt],&spare);
+    SpiderCipherBackFrontShuffleDeck(&spare,&reach);
 
-    DECK_EQ(reach,p);
+    FACT(deckCmp(&reach,&p),==,0);
   }
 }
 
-void I(Deck deck) {
+void I(Deck *deck) {
   //id;
-}
-
-FACTS(I) {
-  Deck i;
-  deckInit(i);
-  I(i);
-  for (int k=0; k<CARDS; ++k) FACT(i[k],==,k);
 }
 
 FACTS(IReachable) {
   Deck id;
-  deckInit(id);
-  I(id);
+  SpiderCipherDeckInit(&id);
+  I(&id);
 
   Deck reach;
-  deckInit(reach);
+  SpiderCipherDeckInit(&reach);
   for (int k=0; k<9; ++k) {
-    P(reach,2);
+    P(&reach,2);
   }
 
-  DECK_EQ(reach,id);
+  FACT(deckCmp(&reach,&id),==,0);
 }
 
-// inverse pseudo-shuffle on cut location c
-void Q(Deck deck,int c) {
-  Deck tmp;
-  deckBackFrontUnshuffle(deck,tmp);
-  deckCut(tmp,CARDS-c,deck);
+void Q(Deck *deck,int cutAt) {
+  InversePseudoShuffleCutAt(deck,cutAt);  
 }
 
 FACTS(Q) {
-  for (int c=0; c<CARDS; ++c) {
+  for (int cutAt=0; cutAt<CARDS; ++cutAt) {
     Deck deck;
     Deck id;
-    deckInit(deck);
-    deckInit(id);
-    P(deck,c);
-    Q(deck,c);
-    DECK_EQ(deck,id);
+    SpiderCipherDeckInit(&deck);
+    SpiderCipherDeckInit(&id);
+    P(&deck,cutAt);
+    FACT(deckCmp(&deck,&id),!=,0);
+    Q(&deck,cutAt);
+    FACT(deckCmp(&deck,&id),==,0);
   }
 }
 
 FACTS(QReachable) {
-  for (int c=0; c<CARDS; ++c) {
+  for (int cutAt=0; cutAt<CARDS; ++cutAt) {
     Deck q;
-    deckInit(q);
-    Q(q,c);
+    SpiderCipherDeckInit(&q);
+    Q(&q,cutAt);
 	  
     Deck reach;
-    deckInit(reach);
+    SpiderCipherDeckInit(&reach);
 
     for (int i=0; i<17; ++i) {
-      deckPseudoShuffle(reach,(i == 8) ? (4+(CARDS-c))%CARDS : 2);
+      int pCutAt=2;
+      if (i == 8) {
+	pCutAt = (4+(CARDS-cutAt))%CARDS;
+      }
+      P(&reach,pCutAt);
     }
-    DECK_EQ(reach,q);
+    FACT(deckCmp(&reach,&q),==,0);
   }
 }
 
-void T(Deck deck, int c) {
-  Deck tmp;
-  deckCut(deck,c,tmp);
-  for (int i=0; i<CARDS; ++i) {
-    deck[i]=tmp[i];
-  }
+void T(Deck *deck, int cutAt) {
+  Deck spare;
+  CutDeckAt(deck,cutAt,&spare);
+  permute(ID,&spare,deck);
 }
 
 FACTS(T) {
-  for (int c=0; c<CARDS; ++c) {
+  for (int cutAt=0; cutAt<CARDS; ++cutAt) {
     Deck t;
-    deckInit(t);
-    T(t,c);
+    SpiderCipherDeckInit(&t);
+    T(&t,cutAt);
 
     for (int i=0; i<CARDS; ++i) {
-      t[i]=(i+c) % CARDS;
+      FACT(t.cards[i],==,(i+cutAt) % CARDS);
     }
   }
 }
 
 FACTS(TReachable) {
-  for (int c=0; c<CARDS; ++c) {
+  for (int cutAt=0; cutAt<CARDS; ++cutAt) {
     Deck t;
-    deckInit(t);
-    T(t,c);
+    SpiderCipherDeckInit(&t);
+    T(&t,cutAt);
 
     Deck reach;
-    deckInit(reach);
+    SpiderCipherDeckInit(&reach);
     for (int i=0; i<9; ++i) {
-      deckPseudoShuffle(reach,(i == 0) ? (2+c)%CARDS : 2);
+      PseudoShuffleCutAt(&reach,(i == 0) ? (2+cutAt)%CARDS : 2);
     }
     
-    DECK_EQ(reach,t);
+    FACT(deckCmp(&reach,&t),==,0);
   }
 }
 
-void R(Deck deck) { // reverse deck
-  Deck tmp;
+void R(Deck *deck) { // reverse deck
+  Deck spare;
   for (int i=0; i<CARDS; ++i) {
-    tmp[i]=deck[(CARDS-1)-i];
+    spare.cards[i]=deck->cards[(CARDS-1)-i];
   }
-  for (int i=0; i<CARDS; ++i) {
-    deck[i]=tmp[i];
-  }
+  setAts(&spare);
+  
+  permute(ID,&spare,deck);
 }
 
 FACTS(R) {
   Deck r;
-  deckInit(r);
-  R(r);
+  SpiderCipherDeckInit(&r);
+  R(&r);
   for (int i=0; i<CARDS; ++i) {
-    FACT(r[i],==,CARDS-1 - i);
+    FACT(r.cards[i],==,CARDS-1 - i);
   }
 }
-
 
 FACTS(RReachable) {
   Deck r;
-  deckInit(r);
-  R(r);
+  SpiderCipherDeckInit(&r);
+  R(&r);
 
   Deck reach;
-  deckInit(reach);
-  P(reach,0);
-  T(reach,20);
-  Q(reach,0);
+  SpiderCipherDeckInit(&reach);
+  P(&reach,0);
+  T(&reach,20);
+  Q(&reach,0);
 
-  DECK_EQ(reach,r);
+  FACT(deckCmp(&reach,&r),==,0);
 }
 
-void X(Deck deck) { // exchange pairs
-  Deck tmp;
+void X(Deck *deck) { // exchange pairs
+  Deck spare;
   for (int i=0; i<CARDS; i += 2) {
     int j=i+1;
-    tmp[i]=deck[j];
-    tmp[j]=deck[i];
+    spare.cards[i]=deck->cards[j];
+    spare.cards[j]=deck->cards[i];
   }
-  for (int i=0; i<CARDS; ++i) {
-    deck[i]=tmp[i];
-  }
+  setAts(&spare);
+  permute(ID,&spare,deck);
 }
 
 FACTS(X) {
   Deck x;
-  deckInit(x);
-  X(x);
+  SpiderCipherDeckInit(&x);
+  X(&x);
   for (int i=0; i<CARDS; ++i) {
-    FACT(x[i],==,(i % 2 == 0) ? i+1 : i-1);
+    FACT(x.cards[i],==,(i % 2 == 0) ? i+1 : i-1);
   }
 }
 
 FACTS(XReachable) {
   Deck x;
-  deckInit(x);
-  X(x);
+  SpiderCipherDeckInit(&x);
+  X(&x);
 
   Deck reach;
-  deckInit(reach);
+  SpiderCipherDeckInit(&reach);
 
-  P(reach,0);
-  R(reach);
-  Q(reach,0);
+  P(&reach,0);
+  R(&reach);
+  Q(&reach,0);
 
-  DECK_EQ(reach,x);
+  FACT(deckCmp(&reach,&x),==,0);
 }
 
-void B(Deck deck, int i) { // exchange i with i+1
+void B(Deck *deck, int i) { // exchange i with i+1
   int j = (i+1)%CARDS;
-  int tmp = deck[i];
-  deck[i]=deck[j];
-  deck[j]=tmp;
+  Card a = deck->cards[i];
+  Card b = deck->cards[j];
+  deck->cards[i]=b;
+  deck->cards[j]=a;
+  deck->ats[a]=j;
+  deck->ats[b]=i;
 }
 
 FACTS(B) {
   for (int i=0; i<CARDS; ++i) {
     Deck b;
-    deckInit(b);
-    B(b,i);
+    SpiderCipherDeckInit(&b);
+    B(&b,i);
     for (int k=0; k<CARDS; ++k) {
       int j=(i+1) % CARDS;
-      if (k == i) FACT(b[k],==,j);
-      if (k == j) FACT(b[k],==,i);
-      if (k != i && k != j) FACT(b[k],==,k);
+      if (k == i) FACT(b.cards[k],==,j);
+      if (k == j) FACT(b.cards[k],==,i);
+      if (k != i && k != j) FACT(b.cards[k],==,k);
     }
   }
 }
@@ -544,44 +631,48 @@ FACTS(B) {
 FACTS(BReachable) {
   for (int i=0; i<CARDS; ++i) {
     Deck b;
-    deckInit(b);
-    B(b,i);
+    SpiderCipherDeckInit(&b);
+    B(&b,i);
 
     Deck reach;
-    deckInit(reach);
+    SpiderCipherDeckInit(&reach);
 
-    T(reach,(i+1)%CARDS);
-    P(reach,0);
-    T(reach,21);
-    Q(reach,0);
-    R(reach);
-    X(reach);
-    T(reach,1);
-    X(reach);
-    T(reach,CARDS-1);
-    T(reach,(2*CARDS-(i+1)) % CARDS);
     
-    DECK_EQ(reach,b);
+    T(&reach,(i+1)%CARDS);
+    P(&reach,0);
+    T(&reach,21);
+    Q(&reach,0);
+    R(&reach);
+    X(&reach);
+    T(&reach,1);
+    X(&reach);
+    T(&reach,CARDS-1);
+    T(&reach,(2*CARDS-(i+1)) % CARDS);
+    
+    FACT(deckCmp(&reach,&b),==,0);
   }
 }
 
-void S(Deck deck, int i, int j) { // swap i and j
-  int tmp = deck[i];
-  deck[i]=deck[j];
-  deck[j]=tmp;
+void S(Deck *deck, int i, int j) { // swap i and j
+  Card a = deck->cards[i];
+  Card b = deck->cards[j];
+  deck->cards[i]=b;
+  deck->cards[j]=a;
+  deck->ats[a]=j;
+  deck->ats[b]=i;
 }
 
 FACTS(S) {
   for (int i=0; i<CARDS; ++i) {
     for (int j=0; j<CARDS; ++j) {
       Deck s;
-      deckInit(s);
-      S(s,i,j);
+      SpiderCipherDeckInit(&s);
+      S(&s,i,j);
       
       for (int k=0; k<CARDS; ++k) {
-	if (k == i) FACT(s[k],==,j);
-	if (k == j) FACT(s[k],==,i);
-	if (k != i && k != j) FACT(s[k],==,k);
+	if (k == i) FACT(s.cards[k],==,j);
+	if (k == j) FACT(s.cards[k],==,i);
+	if (k != i && k != j) FACT(s.cards[k],==,k);
       }
     }
   }
@@ -591,31 +682,31 @@ FACTS(SReachable) {
   for (int i=0; i<CARDS; ++i) {
     for (int j=0; j<CARDS; ++j) {
       Deck s;
-      deckInit(s);
-      S(s,i,j);
+      SpiderCipherDeckInit(&s);
+      S(&s,i,j);
       
       Deck reach;
-      deckInit(reach);
+      SpiderCipherDeckInit(&reach);
 
       if (i != j) {
 	int a = (i < j) ? i : j;
 	int b = (i > j) ? i : j;
 
-	T(reach,a);	
+	T(&reach,a);	
 	for (int k=0; k<b-a; ++k) {
-	  B(reach,k);
+	  B(&reach,k);
 	}
 	for (int k=b-a-2; k>=0; --k) {
-	  B(reach,k);
+	  B(&reach,k);
 	}
-	T(reach,(CARDS-a));
+	T(&reach,(CARDS-a));
       }
-      DECK_EQ(reach,s);
+      FACT(deckCmp(&reach,&s),==,0);
     }
   }
 }
 
-static int CYCLE_LENGTHS [] =
+const int CYCLE_LENGTHS [] =
   {
    27,  30,   9, 110,  12,  90,  99, 234, 105,  12,
    60, 126, 115,  56,  20, 174,  12,  66, 105,  20,
@@ -623,8 +714,7 @@ static int CYCLE_LENGTHS [] =
    36, 380,  75,  20,  60,  40, 182, 190, 440,  24
   };
 
-
-static int PERFECT_CYCLE_LENGTHS [] =
+const int PERFECT_CYCLE_LENGTHS [] =
   {
   36, 465,  36, 176,  30,  39, 180, 105, 390,  48,
  330, 175, 140,  88,  30,  96,  60,  39,  36, 220,
@@ -632,635 +722,57 @@ static int PERFECT_CYCLE_LENGTHS [] =
  132, 240,1400,  30,  60,  35, 308, 145,1848, 168
   };
 
-
-
-int deckcmp(Deck a, Deck b) {
-  int cmp = memcmp(a,b,CARDS);
-  if (cmp < 0) return -1;
-  if (cmp > 0) return  1;
-  return 0;
-}
-
-
 FACTS(Cycles) {
   int ok = 1;
   
   Deck t[CARDS];
   for (int c = 0; c<CARDS; ++c) {
-    deckInit(t[c]);
-    T(t[c],c);
+    SpiderCipherDeckInit(&t[c]);
+    T(&t[c],c);
   }
-
-  for (int perfect = 0; perfect < 2; ++perfect) {
-    for (int c = 0; c < CARDS; ++c) {
-      Deck deck;
-      deckInit(deck);
-      int i = 0,eq=-1;
-      while (eq == -1) {
-	P(deck,c);
-	if (perfect) {
-	  S(deck,0,19);
-	}
-	++i;
-	for (int k=0; k<CARDS; ++k) {
-	  if (deckcmp(deck,t[k])==0) {
-	    eq = k;
+  
+  for (int inverse = 0; inverse < 2; ++inverse) {
+    for (int perfect = 0; perfect < 2; ++perfect) {
+      for (int c = 0; c < CARDS; ++c) {
+	Deck deck;
+	SpiderCipherDeckInit(&deck);
+	int i = 0,eq=-1;
+	while (eq == -1) {
+	  if (inverse) {
+	    if (perfect) {
+	      S(&deck,0,CARDS/2-1);
+	    }
+	    Q(&deck,c);
+	  } else { 
+	    P(&deck,c);
+	    if (perfect) {
+	      S(&deck,0,CARDS/2-1);
+	    }
+	  }
+	  
+	  ++i;
+	  for (int k=0; k<CARDS; ++k) {
+	    if (deckCmp(&deck,&t[k])==0) {
+	      eq = k;
+	    }
 	  }
 	}
-      }
-      int length = perfect ? PERFECT_CYCLE_LENGTHS[c] : CYCLE_LENGTHS[c];
 
-      if (perfect) {
-	FACT(i,>=,30);
-      }
+	int length = perfect ? PERFECT_CYCLE_LENGTHS[c] : CYCLE_LENGTHS[c];
 
-      if (i != length) {
-	ok = 0;
+	if (perfect) {
+	  FACT(i,>=,30);
+	}
+	
+	if (i != length || eq != 0) {
+	  ok = 0;
+	}
       }
     }
   }
+  
   FACT(ok,==,1);
 }
 
-FACTS(InverseCycles) {
-  for (int c = 0; c < CARDS; ++c) {
-    Deck deck;
-    Deck id;
-    deckInit(deck);
-    deckInit(id);
-    int n=CYCLE_LENGTHS[c];
-    for (int i=0; i<n; ++i) {
-      if (i != 0) { DECK_NE(deck,id); }
-      else { DECK_EQ(deck,id); }
-      Q(deck,c);
-      if (i != n-1) { DECK_NE(deck,id); }
-      else { DECK_EQ(deck,id); }
-    }
-  }
-}
-
-uint8_t PERMS1[1][1]=
-  {
-   {0}
-  };
-
-
-uint8_t PERMS2[2][2]=
-  {
-   {0,1},
-   {1,0}
-  };
-
-uint8_t PERMS3[6][3]=
-  {
-   {0,1,2},{0,2,1},
-   {1,0,2},{1,2,0},
-   {2,0,1},{2,1,0}
-  };
-
-uint8_t PERMS4[24][4]=
-  {
-   {0,1,2,3},{0,1,3,2},{0,2,1,3},{0,2,3,1},{0,3,1,2},{0,3,2,1},
-   {1,0,2,3},{1,0,3,2},{1,2,0,3},{1,2,3,0},{1,3,0,2},{1,3,2,0},
-   {2,0,1,3},{2,0,3,1},{2,1,0,3},{2,1,3,0},{2,3,0,1},{2,3,1,0},
-   {3,0,1,2},{3,0,2,1},{3,1,0,2},{3,1,2,0},{3,2,0,1},{3,2,1,0}
-  };
-
-// A set of (1*2*6*24)^4 distinct permutations
-// to test the big deck set with.
-// They are otherwise not important.
-
-void Z(Deck deck, int64_t i) {
-  Deck tmp;
-  for (int j=0; j<4; ++j) {
-    int i1 = 0;
-    int i2 = i % 2;
-    i = i/2;
-    int i3 = i % 6;
-    i = i/6;
-    int i4 = i % 24;
-    i = i/24;
-    
-    tmp[10*j+0+0]=deck[10*j+0+PERMS1[i1][0]];
-    tmp[10*j+1+0]=deck[10*j+1+PERMS2[i2][0]];
-    tmp[10*j+1+1]=deck[10*j+1+PERMS2[i2][1]];
-    tmp[10*j+3+0]=deck[10*j+3+PERMS3[i3][0]];
-    tmp[10*j+3+1]=deck[10*j+3+PERMS3[i3][1]];
-    tmp[10*j+3+2]=deck[10*j+3+PERMS3[i3][2]];  
-    tmp[10*j+6+0]=deck[10*j+6+PERMS4[i4][0]];
-    tmp[10*j+6+1]=deck[10*j+6+PERMS4[i4][1]];
-    tmp[10*j+6+2]=deck[10*j+6+PERMS4[i4][2]];
-    tmp[10*j+6+3]=deck[10*j+6+PERMS4[i4][3]];
-  }
-
-  for (int k=0; k<CARDS; ++k) {
-    deck[k]=tmp[k];
-  }
-}
-
-FACTS(Z) {
-  for (int64_t j0=0; j0<4; ++j0) {
-    for (int64_t j1=0; j1<4; ++j1) {
-      for (int64_t i0=0; i0<2*6*24; ++i0) {
-	for (int64_t i1=0; i1<2*6*24; ++i1) {
-	  int64_t k0 = i0+((j0 > 0) ? pow(2*6*24,j0) : 0);
-	  int64_t k1 = i1+((j1 > 0) ? pow(2*6*24,j1) : 0);
-
-	  if ((k0 == k1) != (i0 == i1 && j0 == j1)) {
-	    printf("k0=%d, k1=%d i0=%d i1=%d j0=%d j1=%d\n",(int) k0,(int) k1,(int) i0,(int) i1,(int) j0,(int) j1);
-	  }
-
-	  Deck d0,d1;
-	  deckInit(d0);
-	  deckInit(d1);	    
-	  Z(d0,k0);
-	  Z(d1,k1);
-	  FACT(memcmp(d0,d1,CARDS)!=0,==,k0!=k1);
-	    
-	  int b0[40],b1[40];
-	  for (int i=0; i<CARDS; ++i) {
-	    b0[i]=0;
-	    b1[i]=0;
-	  }
-	  for (int i=0; i<CARDS; ++i) {
-	    FACT(0,<=,d0[i]);
-	    FACT(d0[i],<,CARDS);
-	    FACT(0,<=,d1[i]);
-	    FACT(d1[i],<,CARDS);
-	    ++b0[d0[i]];
-	    ++b1[d1[i]];
-	  }
-	  for (int i=0; i<CARDS; ++i) {
-	    FACT(b0[i],==,1);
-	    FACT(b1[i],==,1);
-	  }
-	}
-      }
-    }
-  }  
-}
-
-typedef struct {
-  int pbins;
-  uint32_t nbins;
-  uint32_t *counts;
-  uint32_t *offsets;
-  Card *cards;
-  FILE *file;
-} DeckSet;
-
-void DeckSetInit(DeckSet *me, int pbins, FILE *file) {
-  me->pbins = pbins;
-  me->nbins = 1;
-  for (int i=0; i<pbins; ++i) {
-    me->nbins  *= CARDS;
-  }
-
-  me->counts = (uint32_t*)calloc(sizeof(uint32_t),me->nbins);
-  me->offsets = (uint32_t*)calloc(sizeof(uint32_t),me->nbins);
-  me->cards = NULL;
-  me->file = file;
-}
-
-void DeckSetCount(DeckSet *me, Deck deck) {
-  int k=0;
-  for (int i=0; i<me->pbins; ++i) {
-    k=CARDS*k+deck[i];
-  }
-  ++me->counts[k];
-}
-
-void DeckSetCounted(DeckSet *me) {
-  for (int i=0; i<me->nbins; ++i) {
-    me->offsets[i] = ((i > 0) ? me->offsets[i-1] : 0) + me->counts[i];
-  }
-  if (me->file == NULL) {
-    me->cards = (Card*) calloc(me->offsets[me->nbins-1],CARDS);
-    assert(me->cards != NULL);
-  }
-  memset(me->counts,0,me->nbins*sizeof(uint32_t));  
-}
-
-void DeckSetSave(DeckSet *me) {
-  if (me->file == NULL) return;
-  
-  int seekOk = fseek(me->file,0L,SEEK_SET);
-  assert(seekOk==0);
-  for (int i=0; i<me->nbins; ++i) {
-    me->counts[i]=htonl(me->counts[i]);
-  }
-  for (int i=0; i<me->nbins; ++i) {
-    me->offsets[i]=htonl(me->offsets[i]);
-  }
-  int writeOk = fwrite(me->counts,sizeof(uint32_t),me->nbins,me->file);
-  assert(writeOk==me->nbins);
-  writeOk = fwrite(me->offsets,sizeof(uint32_t),me->nbins,me->file);
-  assert(writeOk==me->nbins);
-  for (int i=0; i<me->nbins; ++i) {
-    me->counts[i]=ntohl(me->counts[i]);
-  }
-  for (int i=0; i<me->nbins; ++i) {
-    me->offsets[i]=ntohl(me->offsets[i]);
-  }
-}
-
-void DeckSetLoad(DeckSet *me) {
-  if (me->file == NULL) return;
-  int seekOk = fseek(me->file,0L,SEEK_SET);
-  assert(seekOk==0);
-  int readOk = fread(me->counts,sizeof(uint32_t),me->nbins,me->file);
-  assert(readOk==me->nbins);
-  readOk = fread(me->offsets,sizeof(uint32_t),me->nbins,me->file);
-  assert(readOk==me->nbins);
-
-  for (int i=0; i<me->nbins; ++i) {
-    me->counts[i]=ntohl(me->counts[i]);
-  }
-  for (int i=0; i<me->nbins; ++i) {
-    me->offsets[i]=ntohl(me->offsets[i]);
-  }
-}
-
-void DeckSetAdd(DeckSet *me, Deck deck) {
-  int k=0;
-  for (int i=0; i<me->pbins; ++i) {
-    k=CARDS*k+deck[i];
-  }
-  uint64_t offset = ((k > 0) ? me->offsets[k-1] : 0)+me->counts[k];
-  if (me->file == NULL) {
-    memcpy(me->cards+CARDS*offset,deck,CARDS);
-  } else {
-    offset = CARDS*offset + me->nbins*sizeof(uint32_t);
-    int seekOk = fseek(me->file,offset,SEEK_SET);
-    assert(seekOk==0);
-    int writeOk = fwrite(deck,CARDS,1,me->file);
-    assert(writeOk==1);
-  }
-  ++me->counts[k];
-}
-
-int deckComp(Card *a, Card *b) {
-  return memcmp(a,b,CARDS);
-}
-
-uint32_t unique(uint32_t n, Card *cards) {
-  uint32_t i=0,j=1;
-  while (j < n) {
-    if (memcmp(cards+i*CARDS,cards+j*CARDS,CARDS)==0) {
-      ++j;
-    } else {
-      ++i;
-      if (i != j) {
-	memcpy(cards+i*CARDS,cards+j*CARDS,CARDS);
-      }
-      ++j;
-    }
-  }
-  return i+1;
-}
-
-uint32_t DeckSetSort(DeckSet *me) {
-  uint32_t dups  = 0;
-  int maxCount = 0;
-  for (int k=0; k<me->nbins; ++k) {
-    if (me->counts[k] > maxCount) maxCount = me->counts[k];
-  }
-
-  if (maxCount < 2) {
-    return dups;
-  }
-
-  Card *cards = NULL;
-  if (me->file != NULL) {
-    cards = (Card*) malloc(CARDS*maxCount);
-    assert(cards != NULL);
-  }
-  
-  for (int k=0; k<me->nbins; ++k) {
-    if (me->counts[k] < 2) continue;
-    uint64_t offset = ((k > 0) ? me->offsets[k-1] : 0);
-    if (me->file == NULL) {
-      qsort(me->cards+CARDS*offset,me->counts[k],CARDS,
-	    (int (*)(const void *, const void *))deckComp);
-      uint32_t count=unique(me->counts[k],me->cards+CARDS*offset);
-      dups += (me->counts[k]-count);
-      me->counts[k]=count;
-    } else {
-      offset = CARDS*offset + me->nbins*sizeof(uint32_t);
-      int seekOk = fseek(me->file,offset,SEEK_SET);
-      assert(seekOk==0);
-      int readOk = fread(cards,CARDS,me->counts[k],me->file);
-      assert(readOk==me->counts[k]);
-      qsort(cards,me->counts[k],CARDS,
-	    (int (*)(const void *, const void *))deckComp);
-      uint32_t count=unique(me->counts[k],cards);      
-      dups += (me->counts[k]-count);
-      me->counts[k]=count;
-      seekOk = fseek(me->file,offset,SEEK_SET);
-      assert(seekOk==0);    
-      int writeOk = fwrite(cards,CARDS,me->counts[k],me->file);
-      assert(writeOk==me->counts[k]);
-    }
-  }
-  
-  free(cards);
-
-  return dups;
-  
-}
-
-void DeckSetClose(DeckSet *me) {
-  DeckSetSave(me);
-  free(me->cards);
-  free(me->counts);
-  free(me->offsets);
-}
-
-
-int DeckSetContains(DeckSet *me, Deck deck) {
-  int k=0;
-  for (int i=0; i<me->pbins; ++i) {
-    k = CARDS*k + deck[i];
-  }
-  if (me->counts[k] == 0) return 0;
-
-  int64_t lo = ((k > 0) ? ((int64_t)me->offsets[k-1]) : ((int64_t)0))  - 1;
-  int64_t hi = lo + me->counts[k] + 1;
-
-  while (hi-lo >= 2) {
-    int64_t mid = (lo+hi)/2;
-    Deck tmp;
-    uint64_t offset = mid;
-    int cmp = 0;
-    if (me->file == NULL) {
-      cmp=deckComp(deck,me->cards+offset*CARDS);
-    } else {
-      offset = CARDS*offset + me->nbins*sizeof(uint32_t);
-      int seekOk = fseek(me->file,offset,SEEK_SET);
-      assert(seekOk==0);
-      int readOk = fread(tmp,CARDS,1,me->file);
-      assert(readOk==1);
-      cmp = deckComp(deck,tmp);
-    }
-    if (cmp == 0) return 1;
-    if (cmp < 0) {
-      hi = mid;
-    } else {
-      lo = mid;
-    }
-  }
-  return 0;
-}
-
-FACTS(DeckSet) {
-  for (int tmp = 0; tmp<2; ++tmp) {
-    for (int pbins = 1; pbins < 4; ++pbins) {
-      DeckSet *ds = (DeckSet*) malloc(sizeof(DeckSet));
-      int dups = 0;
-      assert (ds != NULL);
-      FILE *file = NULL;
-      if (tmp) {
-	file=tmpfile();
-	assert(file != NULL);
-      }
-      DeckSetInit(ds,pbins,file);
-
-      for (int64_t j=0; j<1; ++j) {
-	for (int64_t i=0; i<2*6*24; ++i) {
-	  int64_t k = i+((j>0) ? pow(2*6*24,j) : 0);
-
-	  if (k % 17 == 0) continue;
-	  Deck deck;
-
-	  deckInit(deck);
-	  Z(deck,k);
-	  DeckSetCount(ds,deck);
-	  if (k % 19 == 0 && j == 0 && i < 100) {
-	    DeckSetCount(ds,deck);
-	    ++dups;
-	  }
-	}
-      }
-
-      DeckSetCounted(ds);
-
-      for (int64_t j=0; j<1; ++j) {
-	for (int64_t i=2*6*24-1; i>=0; --i) {
-	  int64_t k = i+((j>0) ? pow(2*6*24,j) : 0);
-	  if (k % 17 == 0) continue;
-	  Deck deck;
-	  deckInit(deck);
-	  Z(deck,k);
-	  DeckSetAdd(ds,deck);
-	  if (k % 19 == 0 && j == 0 && i < 100) {
-	    DeckSetAdd(ds,deck);
-	  }
-	}
-      }
-
-      int dups2=DeckSetSort(ds);
-
-      for (int64_t j=0; j<1; ++j) {
-	for (int64_t i=0; i<2*6*24; ++i) {
-	  int64_t k = i+((j>0) ? pow(2*6*24,j) : 0);
-	  Deck deck;
-	  deckInit(deck);
-	  Z(deck,k);
-	  int ans = DeckSetContains(ds,deck);
-	  FACT(ans,==,k % 17 != 0);
-	}
-      }
-
-      FACT(dups,==,dups2);
-
-      DeckSetClose(ds);
-      if (file != NULL) {
-	fclose(file);
-      }
-    }
-  }
-}
-
-void Neighbors(DeckSet *ds,Deck deck, int perfect, int dir, int dist, int count, double *progress, double done) {
-  if (dist > 0) {
-    Deck tmp,next;
-    for (int c=0; c<CARDS; ++c) {
-      if (dir == 1) {
-	deckCut(deck,c,tmp);
-	deckBackFrontShuffle(tmp,next);
-	if (perfect) {
-	  int save=next[19];
-	  next[19]=next[0];
-	  next[0]=save;
-	}
-      } else {
-	for (int d=0; d<CARDS; ++d) {
-	  next[d]=deck[d];
-	}
-	if (perfect) {
-	  int save=next[19];
-	  next[19]=next[0];
-	  next[0]=save;
-	}
-        deckBackFrontUnshuffle(next,tmp);
-	deckCut(tmp,CARDS-c,next);
-      }
-
-      if (progress != NULL) {
-	if (floor((*progress*20)/done) != floor(((*progress+1)*20)/done)) {
-	  fprintf(stderr,"%0.1f done.\n",((*progress)*100)/done);
-	}
-	*progress += 1.0;
-      }
-      if (count) {
-	DeckSetCount(ds,next);
-      } else {
-	DeckSetAdd(ds,next);
-      }
-      Neighbors(ds,next,perfect,dir,dist-1,count,progress,done);
-    }
-  }
-}
-
-double timer() {
-  struct timespec ts;
-  clock_gettime(CLOCK_REALTIME,&ts);
-  return ts.tv_sec + ts.tv_nsec*1e-9;
-}
-
-void datetime(double timer) {
-  struct timespec ts;
-  ts.tv_sec = timer;
-  ts.tv_nsec = (timer-ts.tv_sec)*1e9;
-  char buff[100];
-  strftime(buff,sizeof(buff),"%D %T",gmtime(&ts.tv_sec));
-  fprintf(stderr,"%s.%09ld UTC\n",buff,ts.tv_nsec);
-}
-
-int dups(int perfect, int dir, int dist) {
-  Deck deck;
-  deckInit(deck);
-
-  FILE *file = dist > 5 ? tmpfile() : NULL;
-  int pbins = dist > 5 ? 5 : 4;
-
-  DeckSet *ds = (DeckSet*) malloc(sizeof(DeckSet));
-  DeckSetInit(ds,pbins,file);
-
-  int count = 1;
-  double progress = 0;
-  double done = (pow((double)CARDS,(double)(dist+1))-1)/(CARDS-1);
-
-  fprintf(stderr,"%f steps.\n",done);
-  fprintf(stderr,"counting deck bins in neighborhood.\n");
-  double t0=timer();
-  datetime(t0);
-  Neighbors(ds,deck,perfect,dir,dist,count,&progress,done);
-  DeckSetCounted(ds);
-  double t1=timer();
-  datetime(t1);
-  fprintf(stderr,"counting took %f seconds\n",t1-t0);
-  
-  count = 0;
-  progress = 0;
-  fprintf(stderr,"adding decks to neighborhood.\n");
-  Neighbors(ds,deck,perfect,dir,dist,count,&progress,done);
-  double t2=timer();
-  datetime(t2);
-  fprintf(stderr,"adding took %f seconds\n",t2-t1);
-
-  double est = (t2-t1)*(log(done/ds->nbins)/(log(2)*ds->pbins));
-  fprintf(stderr,"sorting time estimate is %f seconds\n",est);  
-  int dups = DeckSetSort(ds);
-  DeckSetClose(ds);
-  if (file != NULL) fclose(file);
-  free(ds);
-
-  double t3=timer();
-  fprintf(stderr,"sorting took %f seconds\n",t3-t2);  
-  datetime(t3);
-  return dups;
-}
-
-FACTS(Neighborhood4) {
-  int perfect = 0;
-  int n = 4;
-  int collisions = dups(perfect,1,n);
-  FACT(collisions,==,0);
-}
-
-FACTS(PerfectNeighborhood4) {
-  int perfect = 1;
-  int dir = 1;
-  int dist = 4;
-  int collisions = dups(perfect,dir,dist);
-  FACT(collisions,==,0);
-}
-
-// About 200GB disk space, 10GB RAM, and a WEEK of runtime...
-FACTS_EXCLUDE(Neighborhood6) {
-  int perfect = 0;
-  int dir = 1;
-  int dist = 6;
-  int collisions = dups(perfect,dir,dist);
-  FACT(collisions,==,0);
-}
-
-// About 200GB disk space, 10GB RAM, and a WEEK of runtime...
-FACTS_EXCLUDE(PerfectNeighborhood6) {
-  int perfect = 1;
-  int dir = 1;
-  int dist = 6;
-  int collisions = dups(perfect,dir,dist);
-  FACT(collisions,==,0);
-}
-
-FACTS_REGISTER_ALL() {
-    FACTS_REGISTER(RandStats);
-    FACTS_REGISTER(FaceAndSuitNo);
-    FACTS_REGISTER(FaceFromNo);
-    FACTS_REGISTER(SuitFromNo);
-    FACTS_REGISTER(CardFromFaceSuitNo);
-    FACTS_REGISTER(Add);
-    FACTS_REGISTER(Subtract);
-    FACTS_REGISTER(Init);
-    FACTS_REGISTER(Cut);
-    FACTS_REGISTER(BackFrontShuffle);
-    FACTS_REGISTER(FindCard);
-    FACTS_REGISTER(PseudoShuffle);
-    FACTS_REGISTER(Pads);
-    FACTS_REGISTER(Ciphers);
-    FACTS_REGISTER(Encode);
-    FACTS_REGISTER(Envelope);
-    FACTS_REGISTER(BackFrontUnshuffle);
-    FACTS_REGISTER(P);
-    FACTS_REGISTER(PReachable);
-    FACTS_REGISTER(I);
-    FACTS_REGISTER(IReachable);
-    FACTS_REGISTER(Q);
-    FACTS_REGISTER(QReachable);
-    FACTS_REGISTER(T);
-    FACTS_REGISTER(TReachable);
-    FACTS_REGISTER(R);
-    FACTS_REGISTER(RReachable);
-    FACTS_REGISTER(X);
-    FACTS_REGISTER(XReachable);
-    FACTS_REGISTER(B);
-    FACTS_REGISTER(BReachable);
-    FACTS_REGISTER(S);
-    FACTS_REGISTER(SReachable);
-    FACTS_REGISTER(Cycles);
-    FACTS_REGISTER(InverseCycles);
-    FACTS_REGISTER(Z);
-    FACTS_REGISTER(DeckSet);
-    FACTS_REGISTER(Neighborhood4);
-    FACTS_REGISTER(PerfectNeighborhood4);
-    FACTS_REGISTER(Neighborhood6);
-    FACTS_REGISTER(PerfectNeighborhood6);
-}
-
-#endif
-
 FACTS_FAST
 
-    
