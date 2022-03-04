@@ -1,7 +1,5 @@
 #include "spider_cipher_core.h"
 
-
-
 #define SPIDER_CIPHER_CUT_ZTH  0
 #define SPIDER_CIPHER_TAG_ZTH  2
 #define SPIDER_CIPHER_TAG_ADD 39
@@ -10,8 +8,6 @@
 extern "C" {
 #endif
 
-  static uint8_t SpiderCipherFindCard(SpiderCipherDeck *deck, SpiderCipherCard card);
-  
   static SpiderCipherCard SpiderCipherNoiseCard(SpiderCipherDeck *deck);
 
   static SpiderCipherCard SpiderCipherCutCard(SpiderCipherDeck *deck,
@@ -64,12 +60,8 @@ extern "C" {
   void SpiderCipherAdvanceDeck(SpiderCipherDeck *deck,
 			       SpiderCipherCard clear,
 			       SpiderCipherDeck *spare) {
-    SpiderCipherCutDeck(deck,SpiderCipherCutCard(deck,clear),spare);
-    SpiderCipherBackFrontShuffleDeck(spare,deck);
-  }
-  
-  static uint8_t SpiderCipherFindCard(SpiderCipherDeck *deck, SpiderCipherCard card) {
-    return deck->ats[card];
+    SpiderCipherBackFrontShuffleDeck(deck,spare);
+    SpiderCipherCutDeck(spare,SpiderCipherCutCard(spare,clear),deck);
   }
   
   static SpiderCipherCard SpiderCipherCutCard(SpiderCipherDeck *deck,
@@ -81,45 +73,50 @@ extern "C" {
     return deck->cards[(deck->ats[(deck->cards[SPIDER_CIPHER_TAG_ZTH]+SPIDER_CIPHER_TAG_ADD)%SPIDER_CIPHER_CARDS]+1)%SPIDER_CIPHER_CARDS];
   }
 
-
-  static void SpiderCipherCutDeck(SpiderCipherDeck *inputDeck,
-			   SpiderCipherCard cutCard,
-			   SpiderCipherDeck *outputDeck) {
-    if (cutCard >= SPIDER_CIPHER_CARDS) return;
+  static void SpiderCipherCutDeck(SpiderCipherDeck *input,
+				  SpiderCipherCard cut,
+				  SpiderCipherDeck *output) {
+    if (cut >= SPIDER_CIPHER_CARDS) return;
     
-    uint8_t cutAt = inputDeck->ats[cutCard];
-    uint8_t uncutAt = SPIDER_CIPHER_CARDS-cutAt;
+    uint8_t cutAt = input->ats[cut];
+    uint8_t uncutAt = (SPIDER_CIPHER_CARDS-cutAt) % SPIDER_CIPHER_CARDS;
     
     for (uint8_t i=0; i<SPIDER_CIPHER_CARDS; ++i) {
-      outputDeck->cards[i]=
-	inputDeck->cards[(i + cutAt) % SPIDER_CIPHER_CARDS];
-      outputDeck->ats[i]=
-	(inputDeck->ats[i]+uncutAt) % SPIDER_CIPHER_CARDS;
+      output->cards[i]=
+	input->cards[(i + cutAt) % SPIDER_CIPHER_CARDS];
+      output->ats[i]=
+	(input->ats[i]+uncutAt) % SPIDER_CIPHER_CARDS;
     }
     cutAt = 0;
     uncutAt = 0;
   }
   
-  static void SpiderCipherBackFrontShuffleDeck(SpiderCipherDeck *inputDeck,
-					SpiderCipherDeck *outputDeck) {
-    for (uint8_t i=0; i<SPIDER_CIPHER_CARDS/2; ++i) {
-      outputDeck->cards[SPIDER_CIPHER_CARDS/2+i]=
-	inputDeck->cards[2*i];
-      outputDeck->cards[SPIDER_CIPHER_CARDS/2-1-i]=
-	inputDeck->cards[2*i+1];
+  static void SpiderCipherBackFrontShuffleDeck(SpiderCipherDeck *input,
+					SpiderCipherDeck *output) {
+    {
+      SpiderCipherCard *in = input->cards;
+      SpiderCipherCard *out = output->cards+SPIDER_CIPHER_CARDS/2;
+      for (uint8_t i=0; i<SPIDER_CIPHER_CARDS/2; ++i) {
+	out[i]=in[2*i];
+	out[-(i+1)]=in[2*i+1];
+      }
     }
 
-    int8_t was,eo,at;
-    for (int8_t i=0; i<SPIDER_CIPHER_CARDS; ++i) {    
-      was = inputDeck->ats[i];
-      eo=was&1;
-      at = SPIDER_CIPHER_CARDS/2+(1-2*eo)*(was/2+eo);
-      outputDeck->ats[i]=at;
+    {
+      uint8_t *in = input->ats;
+      uint8_t *out = output->ats;
+      
+      int8_t was,eo,at;
+      for (int8_t i=0; i<SPIDER_CIPHER_CARDS; ++i) {    
+	was = in[i];
+	eo=was&1;
+	at = SPIDER_CIPHER_CARDS/2+(1-2*eo)*(was/2+eo);
+	out[i]=at;
+      }
+      was=eo=at=0;
+      in=out=NULL;
     }
-    was=eo=at=0;
   }
-
-
 #ifdef __cplusplus
 }
 #endif

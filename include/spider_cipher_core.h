@@ -36,7 +36,7 @@ extern "C" {
   //       clear = SpiderCipherUnscramble(&deck,scrambled);
   //       packet[i] = clear;
   //    }
-  //    SpiderCipherAdvance(&deck,clear,&spare);
+  //    SpiderCipherAdvanceDeck(&deck,clear,&spare);
   // }
   //
   // SpiderCiperDeckInit(&deck);
@@ -85,9 +85,9 @@ extern "C" {
 
   // Adjust deck for next scramble/unscramble of packet.
   // Spare should be set back to 0,..,39 after final use.
-  void SpiderCipherAdvance(SpiderCipherDeck *deck,
-			   SpiderCipherCard clear,
-			   SpiderCipherDeck *spare);
+  void SpiderCipherAdvanceDeck(SpiderCipherDeck *deck,
+			       SpiderCipherCard clear,
+			       SpiderCipherDeck *spare);
 
 #ifdef __cplusplus
 }

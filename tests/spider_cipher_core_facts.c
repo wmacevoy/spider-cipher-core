@@ -60,31 +60,309 @@ void setAts(Deck *deck) {
   }
 }
 
-#define DECK_EQ(a,b) FACT(deckCmp(a,b),==,0)
-#define DECK_NE(a,b) FACT(deckCmp(a,b),!=,0)
-
 typedef Card Permutation [CARDS];
 
-const Permutation ID = {0,1,2,3,4,5,6,7,8,9,
-			10,11,12,13,14,15,16,17,18,19,
-			20,21,22,23,24,25,26,27,28,29,
-			30,31,32,33,34,35,36,37,38,39};
+const Permutation ID =
+  {
+   0,1,2,3,4,5,6,7,8,9,
+   10,11,12,13,14,15,16,17,18,19,
+   20,21,22,23,24,25,26,27,28,29,
+   30,31,32,33,34,35,36,37,38,39
+  };
 
-const Permutation CUT = {1,2,3,4,5,6,7,8,9,10,
-			 11,12,13,14,15,16,17,18,19,20,
-			 21,22,23,24,25,26,27,28,29,30,
-			 31,32,33,34,35,36,37,38,39,0};
+const Permutation CUT_00 =
+  {
+   0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+   10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+   20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
+   30, 31, 32, 33, 34, 35, 36, 37, 38, 39
+  };
 
-const Permutation CUT_10 = {10,11,12,13,14,15,16,17,18,19,
-			    20,21,22,23,24,25,26,27,28,29,
-			    30,31,32,33,34,35,36,37,38,39,
-			    0,1,2,3,4,5,6,7,8,9};
+const Permutation CUT_01 =
+  {
+   1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+   11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+   21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+   31, 32, 33, 34, 35, 36, 37, 38, 39, 0
+  };
+
+const Permutation CUT_02 =
+  {
+   2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
+   12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+   22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+   32, 33, 34, 35, 36, 37, 38, 39, 0, 1
+  };
+
+const Permutation CUT_03 =
+  {
+   3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+   13, 14, 15, 16, 17, 18, 19, 20, 21, 22,
+   23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
+   33, 34, 35, 36, 37, 38, 39, 0, 1, 2
+  };
+
+const Permutation CUT_04 =
+  {
+   4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
+   14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
+   24, 25, 26, 27, 28, 29, 30, 31, 32, 33,
+   34, 35, 36, 37, 38, 39, 0, 1, 2, 3
+  };
+
+
+const Permutation CUT_05 =
+  {
+   5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
+   15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+   25, 26, 27, 28, 29, 30, 31, 32, 33, 34,
+   35, 36, 37, 38, 39, 0, 1, 2, 3, 4
+  };
+
+const Permutation CUT_06 =
+  {
+   6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+   16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
+   26, 27, 28, 29, 30, 31, 32, 33, 34, 35,
+   36, 37, 38, 39, 0, 1, 2, 3, 4, 5
+  };
+
+const Permutation CUT_07 =
+  {
+   7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+   17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
+   27, 28, 29, 30, 31, 32, 33, 34, 35, 36,
+   37, 38, 39, 0, 1, 2, 3, 4, 5, 6
+  };
+const Permutation CUT_08 =
+  {
+   8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
+   18, 19, 20, 21, 22, 23, 24, 25, 26, 27,
+   28, 29, 30, 31, 32, 33, 34, 35, 36, 37,
+   38, 39, 0, 1, 2, 3, 4, 5, 6, 7
+  };
+
+const Permutation CUT_09 =
+  {
+   9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
+   19, 20, 21, 22, 23, 24, 25, 26, 27, 28,
+   29, 30, 31, 32, 33, 34, 35, 36, 37, 38,
+   39, 0, 1, 2, 3, 4, 5, 6, 7, 8
+  };
+
+const Permutation CUT_10 =
+  {
+   10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+   20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
+   30, 31, 32, 33, 34, 35, 36, 37, 38, 39,
+   0, 1, 2, 3, 4, 5, 6, 7, 8, 9
+  };
+
+const Permutation CUT_11 =
+  {
+   11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+   21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+   31, 32, 33, 34, 35, 36, 37, 38, 39, 0,
+   1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+  };
+
+const Permutation CUT_12 =
+  {
+   12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+   22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+   32, 33, 34, 35, 36, 37, 38, 39, 0, 1,
+   2, 3, 4, 5, 6, 7, 8, 9, 10, 11
+  };
+
+const Permutation CUT_13 =
+  {
+   13, 14, 15, 16, 17, 18, 19, 20, 21, 22,
+   23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
+   33, 34, 35, 36, 37, 38, 39, 0, 1, 2,
+   3, 4, 5, 6, 7, 8, 9, 10, 11, 12
+  };
+
+const Permutation CUT_14 =
+  {
+   14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
+   24, 25, 26, 27, 28, 29, 30, 31, 32, 33,
+   34, 35, 36, 37, 38, 39, 0, 1, 2, 3,
+   4, 5, 6, 7, 8, 9, 10, 11, 12, 13
+  };
+
+const Permutation CUT_15 =
+  {
+   15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+   25, 26, 27, 28, 29, 30, 31, 32, 33, 34,
+   35, 36, 37, 38, 39, 0, 1, 2, 3, 4,
+   5, 6, 7, 8, 9, 10, 11, 12, 13, 14
+  };
+
+const Permutation CUT_16 =
+  {
+   16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
+   26, 27, 28, 29, 30, 31, 32, 33, 34, 35,
+   36, 37, 38, 39, 0, 1, 2, 3, 4, 5,
+   6, 7, 8, 9, 10, 11, 12, 13, 14, 15
+  };
+
+const Permutation CUT_17 =
+  {
+   17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
+   27, 28, 29, 30, 31, 32, 33, 34, 35, 36,
+   37, 38, 39, 0, 1, 2, 3, 4, 5, 6,
+   7, 8, 9, 10, 11, 12, 13, 14, 15, 16
+  };
+
+const Permutation CUT_18 =
+  {
+   18, 19, 20, 21, 22, 23, 24, 25, 26, 27,
+   28, 29, 30, 31, 32, 33, 34, 35, 36, 37,
+   38, 39, 0, 1, 2, 3, 4, 5, 6, 7,
+   8, 9, 10, 11, 12, 13, 14, 15, 16, 17
+  };
+
+const Permutation CUT_19 = {
+ 19, 20, 21, 22, 23, 24, 25, 26, 27, 28,
+ 29, 30, 31, 32, 33, 34, 35, 36, 37, 38,
+ 39, 0, 1, 2, 3, 4, 5, 6, 7, 8,
+ 9, 10, 11, 12, 13, 14, 15, 16, 17, 18
+};
+const Permutation CUT_20 = {
+ 20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
+ 30, 31, 32, 33, 34, 35, 36, 37, 38, 39,
+ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+ 10, 11, 12, 13, 14, 15, 16, 17, 18, 19
+};
+const Permutation CUT_21 = {
+ 21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+ 31, 32, 33, 34, 35, 36, 37, 38, 39, 0,
+ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+ 11, 12, 13, 14, 15, 16, 17, 18, 19, 20
+};
+const Permutation CUT_22 = {
+ 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+ 32, 33, 34, 35, 36, 37, 38, 39, 0, 1,
+ 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
+ 12, 13, 14, 15, 16, 17, 18, 19, 20, 21
+};
+const Permutation CUT_23 = {
+ 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
+ 33, 34, 35, 36, 37, 38, 39, 0, 1, 2,
+ 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+ 13, 14, 15, 16, 17, 18, 19, 20, 21, 22
+};
+const Permutation CUT_24 = {
+ 24, 25, 26, 27, 28, 29, 30, 31, 32, 33,
+ 34, 35, 36, 37, 38, 39, 0, 1, 2, 3,
+ 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
+ 14, 15, 16, 17, 18, 19, 20, 21, 22, 23
+};
+const Permutation CUT_25 = {
+ 25, 26, 27, 28, 29, 30, 31, 32, 33, 34,
+ 35, 36, 37, 38, 39, 0, 1, 2, 3, 4,
+ 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
+ 15, 16, 17, 18, 19, 20, 21, 22, 23, 24
+};
+const Permutation CUT_26 = {
+ 26, 27, 28, 29, 30, 31, 32, 33, 34, 35,
+ 36, 37, 38, 39, 0, 1, 2, 3, 4, 5,
+ 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+ 16, 17, 18, 19, 20, 21, 22, 23, 24, 25
+};
+const Permutation CUT_27 = {
+ 27, 28, 29, 30, 31, 32, 33, 34, 35, 36,
+ 37, 38, 39, 0, 1, 2, 3, 4, 5, 6,
+ 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+ 17, 18, 19, 20, 21, 22, 23, 24, 25, 26
+};
+const Permutation CUT_28 = {
+ 28, 29, 30, 31, 32, 33, 34, 35, 36, 37,
+ 38, 39, 0, 1, 2, 3, 4, 5, 6, 7,
+ 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
+ 18, 19, 20, 21, 22, 23, 24, 25, 26, 27
+};
+const Permutation CUT_29 = {
+ 29, 30, 31, 32, 33, 34, 35, 36, 37, 38,
+ 39, 0, 1, 2, 3, 4, 5, 6, 7, 8,
+ 9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
+ 19, 20, 21, 22, 23, 24, 25, 26, 27, 28
+};
+const Permutation CUT_30 = {
+ 30, 31, 32, 33, 34, 35, 36, 37, 38, 39,
+ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+ 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+ 20, 21, 22, 23, 24, 25, 26, 27, 28, 29
+};
+const Permutation CUT_31 = {
+ 31, 32, 33, 34, 35, 36, 37, 38, 39, 0,
+ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+ 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+ 21, 22, 23, 24, 25, 26, 27, 28, 29, 30
+};
+const Permutation CUT_32 = {
+ 32, 33, 34, 35, 36, 37, 38, 39, 0, 1,
+ 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
+ 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+ 22, 23, 24, 25, 26, 27, 28, 29, 30, 31
+};
+const Permutation CUT_33 = {
+ 33, 34, 35, 36, 37, 38, 39, 0, 1, 2,
+ 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+ 13, 14, 15, 16, 17, 18, 19, 20, 21, 22,
+ 23, 24, 25, 26, 27, 28, 29, 30, 31, 32
+};
+const Permutation CUT_34 = {
+ 34, 35, 36, 37, 38, 39, 0, 1, 2, 3,
+ 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
+ 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
+ 24, 25, 26, 27, 28, 29, 30, 31, 32, 33
+};
+const Permutation CUT_35 = {
+ 35, 36, 37, 38, 39, 0, 1, 2, 3, 4,
+ 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
+ 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+ 25, 26, 27, 28, 29, 30, 31, 32, 33, 34
+};
+const Permutation CUT_36 = {
+ 36, 37, 38, 39, 0, 1, 2, 3, 4, 5,
+ 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+ 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
+ 26, 27, 28, 29, 30, 31, 32, 33, 34, 35
+};
+const Permutation CUT_37 = {
+ 37, 38, 39, 0, 1, 2, 3, 4, 5, 6,
+ 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+ 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
+ 27, 28, 29, 30, 31, 32, 33, 34, 35, 36
+};
+const Permutation CUT_38 = {
+ 38, 39, 0, 1, 2, 3, 4, 5, 6, 7,
+ 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
+ 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,
+ 28, 29, 30, 31, 32, 33, 34, 35, 36, 37
+};
+
+const Permutation CUT_39 =
+  {
+   39, 0, 1, 2, 3, 4, 5, 6, 7, 8,
+   9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
+   19, 20, 21, 22, 23, 24, 25, 26, 27, 28,
+   29, 30, 31, 32, 33, 34, 35, 36, 37, 38
+};
+
+const Permutation* CUTS[] =
+  {
+   &CUT_00, &CUT_01, &CUT_02, &CUT_03, &CUT_04, &CUT_05, &CUT_06, &CUT_07, &CUT_08, &CUT_09,
+   &CUT_10, &CUT_11, &CUT_12, &CUT_13, &CUT_14, &CUT_15, &CUT_16, &CUT_17, &CUT_18, &CUT_19,
+   &CUT_20, &CUT_21, &CUT_22, &CUT_23, &CUT_24, &CUT_25, &CUT_26, &CUT_27, &CUT_28, &CUT_29,
+   &CUT_30, &CUT_31, &CUT_32, &CUT_33, &CUT_34, &CUT_35, &CUT_36, &CUT_37, &CUT_38, &CUT_39
+  };
 
 const Permutation BACK_FRONT = {39,37,35,33,31,29,27,25,23,21,
 				19,17,15,13,11, 9, 7, 5, 3, 1,
 				0, 2, 4, 6, 8,10,12,14,16,18,
 				20,22,24,26,28,30,32,34,36,38};
-
 
 //
 // a = 1..40 x b = 0..40  test permutations
@@ -156,12 +434,12 @@ FACTS(DeckInit) {
   testDeckInit(&deck);
 }
 
-uint8_t pf(uint8_t at, void *misc) {
+uint8_t PermutationFunction(uint8_t at, void *misc) {
   return (*(const Permutation*) misc)[at];
 }
 
 int testInitBy(Deck *deck, Card (*f)(uint8_t at, void *misc),void *misc) {
-  Permutation p;
+  Permutation permutation;
   int expectStatus = 1;
 
   uint8_t ats[CARDS];
@@ -174,7 +452,7 @@ int testInitBy(Deck *deck, Card (*f)(uint8_t at, void *misc),void *misc) {
     if (card >= CARDS) {
       expectStatus = 0;
     }
-    p[at]=card;
+    permutation[at]=card;
     if (ats[card] == CARDS) {
       ats[card]=at;
     } else {
@@ -182,11 +460,11 @@ int testInitBy(Deck *deck, Card (*f)(uint8_t at, void *misc),void *misc) {
     }
   }
   
-  int status = SpiderCipherDeckInitBy(deck,pf,&p);
+  int status = SpiderCipherDeckInitBy(deck,PermutationFunction,&permutation);
   assert(status == expectStatus);
   if (status) {
     Deck expect;
-    deckSet(&expect,p);
+    deckSet(&expect,permutation);
     assert(deckCmp(&expect,deck)==0);
   }
   return status;
@@ -197,19 +475,38 @@ FACTS(InitBy) {
   for (int a=1; a <= CARDS; ++a) {
     for (int b=0; b <= CARDS; ++b) {
       Deck deck;
-      Permutation p;
-      samplePermutation(p,a,b);
-      FACT(testInitBy(&deck,pf,&p),==,1);
-      sampleBadPermutation(p,a,b);
-      FACT(testInitBy(&deck,pf,&p),==,0);
+      Permutation permutation;
+      samplePermutation(permutation,a,b);
+      FACT(testInitBy(&deck,PermutationFunction,&permutation),==,1);
+      sampleBadPermutation(permutation,a,b);
+      FACT(testInitBy(&deck,PermutationFunction,&permutation),==,0);
     }
   }
 }
 
 void sampleDeck(Deck *deck, int a, int b) {
-  Permutation p;
-  samplePermutation(p,a,b);
-  deckSet(deck,p);
+  Permutation permutation;
+  samplePermutation(permutation,a,b);
+  deckSet(deck,permutation);
+}
+
+
+Card testCutCard(Deck *deck, Card clear) {
+  Card card = (deck->cards[CUT_ZTH] + clear) % CARDS;
+  assert(card == SpiderCipherCutCard(deck,clear));
+  return card;
+}
+
+FACTS(CutCard) {
+  for (int a=1; a <= CARDS; ++a) {
+    for (int b=0; b <= CARDS; ++b) {    
+      Deck deck;
+      sampleDeck(&deck,a,b);
+      for (Card clear = 0; clear < CARDS; ++clear) {
+	testCutCard(&deck,clear);
+      }
+    }
+  }
 }
 
 int testFindCard(Deck *deck, Card card) {
@@ -217,7 +514,6 @@ int testFindCard(Deck *deck, Card card) {
   uint8_t at = deck->ats[card];
   assert(at < CARDS);
   assert(deck->cards[at] == card);
-  assert(SpiderCipherFindCard(deck,card) == at);
   return at;
 }
 
@@ -227,7 +523,8 @@ FACTS(FindCard) {
       Deck deck;
       sampleDeck(&deck,a,b);
       for (Card card = 0; card < CARDS; ++card) {
-	testFindCard(&deck,card);
+	uint8_t at = testFindCard(&deck,card);
+	FACT(deck.cards[at],==,card);
       }
     }
   }
@@ -252,19 +549,64 @@ FACTS(NoiseCard) {
   }
 }
 
-Card testCutCard(Deck *deck, Card clear) {
-  Card card = (deck->cards[CUT_ZTH] + clear) % CARDS;
-  assert(card == SpiderCipherCutCard(deck,clear));
-  return card;
+void testCutDeck(Deck *in, Card cutCard, Deck *out) {
+  int cutAt = testFindCard(in,cutCard);
+  Deck expect;
+  permute(*CUTS[cutAt],in,&expect);
+  SpiderCipherCutDeck(in,cutCard,out);
+  assert(deckCmp(&expect,out)==0);
+  assert(out->cards[0] == cutCard);
 }
 
-FACTS(CutCard) {
+FACTS(CutDeck) {
   for (int a=1; a <= CARDS; ++a) {
-    for (int b=0; b <= CARDS; ++b) {    
-      Deck deck;
+    for (int b=0; b <= CARDS; ++b) {
+      Deck deck,spare;
       sampleDeck(&deck,a,b);
-      for (Card clear = 0; clear < CARDS; ++clear) {
-	testCutCard(&deck,clear);
+      for (int cutCard=0; cutCard < CARDS; ++cutCard) {      
+	testCutDeck(&deck,cutCard,&spare);
+      }
+    }
+  }
+}
+
+void CutDeckAt(Deck *in, uint8_t cutAt, Deck *out) {
+  Card cutCard=in->cards[cutAt % CARDS];
+  SpiderCipherCutDeck(in,cutCard,out);
+}
+
+FACTS(CutDeckAt) {
+  for (int a=1; a <= CARDS; ++a) {
+    for (int b=0; b <= CARDS; ++b) {
+      for (int cutAt=0; cutAt < CARDS; ++cutAt) {      
+	Deck deck,spare;
+	sampleDeck(&deck,a,b);
+	CutDeckAt(&deck,cutAt,&spare);
+	FACT(deck.cards[cutAt],==,spare.cards[0]);
+      }
+    }
+  }
+}
+
+void InverseCutDeckAt(Deck *in, uint8_t cutAt, Deck *out) {
+  CutDeckAt(in,(CARDS-cutAt)%CARDS,out);
+}
+
+FACTS(InverseCutDeckAt) {
+  for (int a=1; a <= CARDS; ++a) {
+    for (int b=0; b <= CARDS; ++b) {
+      for (int cutAt=0; cutAt < CARDS; ++cutAt) {      
+	Deck original,deck,spare;
+	sampleDeck(&original,a,b);
+	sampleDeck(&deck,a,b);
+	CutDeckAt(&deck,cutAt,&spare);
+	if (cutAt == 0) {
+	  FACT(deckCmp(&spare,&original),==,0);
+	} else {
+	  FACT(deckCmp(&spare,&original),!=,0);
+	}
+	InverseCutDeckAt(&spare,cutAt,&deck);	
+	FACT(deckCmp(&deck,&original),==,0);
       }
     }
   }
@@ -288,84 +630,14 @@ FACTS(BackFrontShuffleDeck) {
   }
 }
 
-void testCutDeck(Deck *in, Card cutCard, Deck *out) {
-  int cutAt = testFindCard(in,cutCard);
-  Permutation p;
-  for (int i=0; i<CARDS; ++i) {
-    p[i]=(i+cutAt) % CARDS;
-  }
-  Deck expect;
-  permute(p,in,&expect);
-  SpiderCipherCutDeck(in,cutCard,out);
-  assert(deckCmp(&expect,out)==0);
-  assert(out->cards[0] == cutCard);
-}
 
-FACTS(CutDeck) {
-  for (int a=1; a <= CARDS; ++a) {
-    for (int b=0; b <= CARDS; ++b) {
-      Deck deck,spare;
-      sampleDeck(&deck,a,b);
-      for (int cutCard=0; cutCard < CARDS; ++cutCard) {      
-	testCutDeck(&deck,cutCard,&spare);
-      }
-    }
-  }
-}
-
-void CutDeckAt(Deck *in, uint8_t cutAt, Deck *out) {
-  Card cutCard=in->cards[cutAt % CARDS];
-  SpiderCipherCutDeck(in,cutCard,out);
-}
-
-
-FACTS(CutDeckAt) {
-  for (int a=1; a <= CARDS; ++a) {
-    for (int b=0; b <= CARDS; ++b) {
-      for (int cutAt=0; cutAt < CARDS; ++cutAt) {      
-	Deck deck,spare;
-	sampleDeck(&deck,a,b);
-	CutDeckAt(&deck,cutAt,&spare);
-	FACT(deck.cards[cutAt],==,spare.cards[0]);
-      }
-    }
-  }
-}
-
-void InverseCutDeckAt(Deck *in, uint8_t cutAt, Deck *out) {
-  CutDeckAt(in,(CARDS-cutAt)%CARDS,out);
-}
-
-
-FACTS(InverseCutDeckAt) {
-  for (int a=1; a <= CARDS; ++a) {
-    for (int b=0; b <= CARDS; ++b) {
-      for (int cutAt=0; cutAt < CARDS; ++cutAt) {      
-	Deck original,deck,spare;
-	sampleDeck(&original,a,b);
-	sampleDeck(&deck,a,b);
-	CutDeckAt(&deck,cutAt,&spare);
-	if (cutAt == 0) {
-	  FACT(deckCmp(&spare,&original),==,0);
-	} else {
-	  FACT(deckCmp(&spare,&original),!=,0);
-	}
-	InverseCutDeckAt(&spare,cutAt,&deck);	
-	FACT(deckCmp(&deck,&original),==,0);
-      }
-    }
-  }
-}
 
 void BackFrontUnshuffleDeck(Deck *in, Deck *out) {
   for (int i=0; i<CARDS; ++i) {
     out->cards[BACK_FRONT[i]]=in->cards[i];
   }
-  for (int i=0; i<CARDS; ++i) {
-    out->ats[out->cards[i]]=i;
-  }
+  setAts(out);
 }
-
 
 FACTS(BackFrontUnshuffle) {
   for (int a=1; a <= CARDS; ++a) {
@@ -382,14 +654,21 @@ FACTS(BackFrontUnshuffle) {
 
 void PseudoShuffleCutAt(Deck *deck, uint8_t cutAt) {
   Deck spare;
-  SpiderCipherCutDeck(deck,deck->cards[cutAt%CARDS],&spare);
-  SpiderCipherBackFrontShuffleDeck(&spare,deck);
+
+  SpiderCipherBackFrontShuffleDeck(deck,&spare);
+
+  Card cutPad=spare.cards[CUT_ZTH];
+  Card cutCard=spare.cards[cutAt%CARDS];
+  Card clearCard = (cutCard + (CARDS-cutPad)) % CARDS;
+  
+  SpiderCipherAdvanceDeck(deck,clearCard,&spare);
 }
 
 void InversePseudoShuffleCutAt(Deck *deck, uint8_t cutAt) {
   Deck spare;
-  BackFrontUnshuffleDeck(deck,&spare);
-  SpiderCipherCutDeck(&spare,spare.cards[(CARDS-cutAt)%CARDS],deck);
+  
+  SpiderCipherCutDeck(deck,deck->cards[(CARDS-cutAt)%CARDS],&spare);
+  BackFrontUnshuffleDeck(&spare,deck);
 }
 
 FACTS(InversePseudoShuffleCutAt) {
@@ -405,6 +684,41 @@ FACTS(InversePseudoShuffleCutAt) {
   }
 }
 
+FACTS(CutCardUniform) {
+  for (int a=1; a <= CARDS; ++a) {
+    for (int b=0; b <= CARDS; ++b) {    
+      Deck deck,spare;
+      int counts[CARDS] = {0};
+      for (Card clear = 0; clear < CARDS; ++clear) {
+	sampleDeck(&deck,a,b);
+	SpiderCipherAdvanceDeck(&deck,clear,&spare);
+	++counts[SpiderCipherCutCard(&deck,0)];
+      }
+      for (Card card = 0; card < CARDS; ++card) {
+	FACT(counts[card],==,1);
+      }
+    }
+  }
+}
+
+FACTS(NoiseCardUniform) {
+  for (int a=1; a <= CARDS; ++a) {
+    for (int b=0; b <= CARDS; ++b) {    
+      Deck deck,spare;
+      int counts[CARDS] = {0};
+      for (Card clear = 0; clear < CARDS; ++clear) {
+	sampleDeck(&deck,a,b);
+	SpiderCipherAdvanceDeck(&deck,clear,&spare);
+	++counts[SpiderCipherScramble(&deck,0)];
+      }
+      for (Card card = 0; card < CARDS; ++card) {
+	FACT(counts[card],==,1);
+      }
+    }
+  }
+}
+		   
+
 // pseudo-shuffle on cut at location cutAt
 void P(Deck *deck,int cutAt) {
   PseudoShuffleCutAt(deck,cutAt);
@@ -417,14 +731,15 @@ void pd(Deck *deck) {
   }
 }
 
+
 FACTS(P) {
   for (int a=1; a <= CARDS; ++a) {
     for (int b=0; b <= CARDS; ++b) {
       for (int cutAt=0; cutAt<CARDS; ++cutAt) {
 	Deck deck,spare,expect;
 	sampleDeck(&deck,a,b);
-	CutDeckAt(&deck,cutAt,&spare);
-	permute(BACK_FRONT,&spare,&expect);
+	permute(BACK_FRONT,&deck,&spare);
+	CutDeckAt(&spare,cutAt,&expect);
 	P(&deck,cutAt);
 	FACT(deckCmp(&deck,&expect),==,0);
       }
@@ -440,8 +755,12 @@ FACTS(PReachable) {
     
     Deck reach,spare;
     SpiderCipherDeckInit(&reach);
-    SpiderCipherCutDeck(&reach,reach.cards[cutAt],&spare);
-    SpiderCipherBackFrontShuffleDeck(&spare,&reach);
+    SpiderCipherBackFrontShuffleDeck(&reach,&spare);
+    Card cutPad = spare.cards[CUT_ZTH];
+    Card cutCard = spare.cards[cutAt];
+    Card clear = (cutCard+(CARDS-cutPad)) % CARDS;
+    
+    SpiderCipherAdvanceDeck(&reach,clear,&spare);
 
     FACT(deckCmp(&reach,&p),==,0);
   }
@@ -732,22 +1051,22 @@ FACTS(Cycles) {
   }
   
   for (int inverse = 0; inverse < 2; ++inverse) {
-    for (int perfect = 0; perfect < 2; ++perfect) {
+    for (int perfect = 0; perfect < 1; ++perfect) { // !! skip perfect
       for (int c = 0; c < CARDS; ++c) {
 	Deck deck;
 	SpiderCipherDeckInit(&deck);
 	int i = 0,eq=-1;
 	while (eq == -1) {
 	  if (inverse) {
-	    if (perfect) {
-	      S(&deck,0,CARDS/2-1);
-	    }
 	    Q(&deck,c);
-	  } else { 
-	    P(&deck,c);
 	    if (perfect) {
-	      S(&deck,0,CARDS/2-1);
+	      S(&deck,CARDS/2-1,CARDS-1);
 	    }
+	  } else { 
+	    if (perfect) {
+	      S(&deck,CARDS/2-1,CARDS-1);
+	    }
+	    P(&deck,c);
 	  }
 	  
 	  ++i;
@@ -765,6 +1084,7 @@ FACTS(Cycles) {
 	}
 	
 	if (i != length || eq != 0) {
+	  printf("cycles %d = %d\n",c,i);
 	  ok = 0;
 	}
       }
