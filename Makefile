@@ -1,7 +1,7 @@
 
 CSTD?=-std=c11  -D_POSIX_C_SOURCE=199309L
 CDBG?=-g
-COPT?=-O2
+# COPT?=-O2
 CINC?=-Iinclude
 
 CFLAGS=$(CDBG) $(COPT) $(CSTD) $(CINC)

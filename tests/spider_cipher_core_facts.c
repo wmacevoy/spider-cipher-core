@@ -570,43 +570,44 @@ FACTS(CutDeck) {
   }
 }
 
-void CutDeckAt(Deck *in, uint8_t cutAt, Deck *out) {
-  Card cutCard=in->cards[cutAt % CARDS];
+void CutDeckAt(Deck *in, int8_t cutAt, Deck *out) {
+  cutAt = ((cutAt % CARDS)+CARDS)%CARDS;
+  Card cutCard=in->cards[cutAt];
   SpiderCipherCutDeck(in,cutCard,out);
 }
 
 FACTS(CutDeckAt) {
   for (int a=1; a <= CARDS; ++a) {
     for (int b=0; b <= CARDS; ++b) {
-      for (int cutAt=0; cutAt < CARDS; ++cutAt) {      
-	Deck deck,spare;
+      for (int cutAt=-CARDS; cutAt <= 2*CARDS; ++cutAt) {      
+	Deck deck,spare,expect;
 	sampleDeck(&deck,a,b);
+	sampleDeck(&expect,a,b);
 	CutDeckAt(&deck,cutAt,&spare);
-	FACT(deck.cards[cutAt],==,spare.cards[0]);
+  int at = cutAt;
+  while (at < 0) at += CARDS;
+  while (at >= CARDS) at -= CARDS;
+  deckMix(&expect,*CUTS[at]);
+	FACT(deckCmp(&spare,&expect),==,0);
       }
     }
   }
 }
 
-void InverseCutDeckAt(Deck *in, uint8_t cutAt, Deck *out) {
-  CutDeckAt(in,(CARDS-cutAt)%CARDS,out);
+void InverseCutDeckAt(Deck *in, int8_t cutAt, Deck *out) {
+  CutDeckAt(in,-cutAt,out);
 }
 
 FACTS(InverseCutDeckAt) {
   for (int a=1; a <= CARDS; ++a) {
     for (int b=0; b <= CARDS; ++b) {
-      for (int cutAt=0; cutAt < CARDS; ++cutAt) {      
-	Deck original,deck,spare;
-	sampleDeck(&original,a,b);
-	sampleDeck(&deck,a,b);
-	CutDeckAt(&deck,cutAt,&spare);
-	if (cutAt == 0) {
-	  FACT(deckCmp(&spare,&original),==,0);
-	} else {
-	  FACT(deckCmp(&spare,&original),!=,0);
-	}
-	InverseCutDeckAt(&spare,cutAt,&deck);	
-	FACT(deckCmp(&deck,&original),==,0);
+      for (int cutAt=-CARDS; cutAt <= 2*CARDS; ++cutAt) {      
+	      Deck deck,spare,expect;
+      	sampleDeck(&deck,a,b);
+      	sampleDeck(&expect,a,b);
+	      CutDeckAt(&deck,cutAt,&spare);
+        InverseCutDeckAt(&spare,cutAt,&deck);
+       	FACT(deckCmp(&deck,&expect),==,0);
       }
     }
   }
@@ -652,36 +653,69 @@ FACTS(BackFrontUnshuffle) {
   }
 }
 
-void PseudoShuffleCutAt(Deck *deck, uint8_t cutAt) {
+void CutShuffleCut(Deck *deck,
+                   int8_t cutAtBefore,int8_t cutAtAfter) {
   Deck spare;
+  CutDeckAt(deck,cutAtBefore,&spare);
+  SpiderCipherBackFrontShuffleDeck(&spare,deck);
+  CutDeckAt(deck,cutAtAfter,&spare);
+  SpiderCipherCopyDeck(&spare,deck);
+}
 
-  SpiderCipherBackFrontShuffleDeck(deck,&spare);
+void InverseCutShuffleCut(Deck *deck,
+                   uint8_t cutAtBefore,uint8_t cutAtAfter) {
+  Deck spare;
+  CutDeckAt(deck,-cutAtAfter,&spare);
+  BackFrontUnshuffleDeck(&spare,deck);
+  CutDeckAt(deck,-cutAtBefore,&spare);
+  SpiderCipherCopyDeck(&spare,deck);
+}
 
-  Card cutPad=spare.cards[CUT_ZTH];
-  Card cutCard=spare.cards[cutAt%CARDS];
-  Card clearCard = (cutCard + (CARDS-cutPad)) % CARDS;
-  
-  SpiderCipherAdvanceDeck(deck,clearCard,&spare);
+void CutShuffleCutTestDeck(struct FactsStruct *facts, Deck *original) {
+    Deck deck,expect,spare;
+    for (int cutAtBefore=0; cutAtBefore<CARDS; ++cutAtBefore) {
+        for (int cutAtAfter=0; cutAtAfter<CARDS; ++cutAtAfter) {
+    SpiderCipherCopyDeck(original,&deck);
+    SpiderCipherCopyDeck(original,&expect);
+    CutShuffleCut(&deck,cutAtBefore,cutAtAfter);
+    deckMix(&expect,*CUTS[cutAtBefore]);
+    deckMix(&expect,BACK_FRONT);
+    deckMix(&expect,*CUTS[cutAtAfter]);
+    FACT(deckCmp(&deck,&expect),==,0);
+    InverseCutShuffleCut(&deck,cutAtBefore,cutAtAfter);
+    FACT(deckCmp(&deck,original),==,0);
+        }
+    }
+}
+
+FACTS_EXCLUDE(CutShuffleCutSlower) {
+  for (int a=1; a <= CARDS; ++a) {
+    for (int b=0; b <= CARDS; ++b) {
+      Deck original;
+      sampleDeck(&original,a,b);
+      CutShuffleCutTestDeck(facts,&original);
+    }
+  }
+}
+
+FACTS(CutShuffleCut) {
+  for (int a=1; a <= CARDS; ++a) {
+    for (int b=0; b <= CARDS; ++b) {
+      // skip about 90% of the tests...
+      if ((a*1299827+9973*b) % 11 != 0) continue;
+      Deck original;
+      sampleDeck(&original,a,b);
+      CutShuffleCutTestDeck(facts,&original);
+    }
+  }
+}
+
+void PseudoShuffleCutAt(Deck *deck, uint8_t cutAt) {
+  CutShuffleCut(deck,cutAt,0);
 }
 
 void InversePseudoShuffleCutAt(Deck *deck, uint8_t cutAt) {
-  Deck spare;
-  
-  SpiderCipherCutDeck(deck,deck->cards[(CARDS-cutAt)%CARDS],&spare);
-  BackFrontUnshuffleDeck(&spare,deck);
-}
-
-FACTS(InversePseudoShuffleCutAt) {
-  for (int cutAt=0; cutAt<CARDS; ++cutAt) {
-    Deck id,deck;
-    SpiderCipherDeckInit(&id);
-    SpiderCipherDeckInit(&deck);
-
-    PseudoShuffleCutAt(&deck,cutAt);
-    FACT(deckCmp(&deck,&id),!=,0);
-    InversePseudoShuffleCutAt(&deck,cutAt);
-    FACT(deckCmp(&deck,&id),==,0);
-  }
+  InverseCutShuffleCut(deck,cutAt,0);
 }
 
 FACTS(CutCardUniform) {
@@ -717,7 +751,6 @@ FACTS(NoiseCardUniform) {
     }
   }
 }
-		   
 
 // pseudo-shuffle on cut at location cutAt
 void P(Deck *deck,int cutAt) {
@@ -738,31 +771,12 @@ FACTS(P) {
       for (int cutAt=0; cutAt<CARDS; ++cutAt) {
 	Deck deck,spare,expect;
 	sampleDeck(&deck,a,b);
-	permute(BACK_FRONT,&deck,&spare);
-	CutDeckAt(&spare,cutAt,&expect);
+	CutDeckAt(&deck,cutAt,&spare);
+	permute(BACK_FRONT,&spare,&expect);
 	P(&deck,cutAt);
 	FACT(deckCmp(&deck,&expect),==,0);
       }
     }
-  }
-}
-
-FACTS(PReachable) {
-  for (int cutAt=0; cutAt<CARDS; ++cutAt) {
-    Deck p;
-    SpiderCipherDeckInit(&p);
-    P(&p,cutAt);
-    
-    Deck reach,spare;
-    SpiderCipherDeckInit(&reach);
-    SpiderCipherBackFrontShuffleDeck(&reach,&spare);
-    Card cutPad = spare.cards[CUT_ZTH];
-    Card cutCard = spare.cards[cutAt];
-    Card clear = (cutCard+(CARDS-cutPad)) % CARDS;
-    
-    SpiderCipherAdvanceDeck(&reach,clear,&spare);
-
-    FACT(deckCmp(&reach,&p),==,0);
   }
 }
 
@@ -1095,4 +1109,3 @@ FACTS(Cycles) {
 }
 
 FACTS_FAST
-

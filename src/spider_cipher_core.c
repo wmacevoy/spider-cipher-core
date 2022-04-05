@@ -8,6 +8,8 @@
 extern "C" {
 #endif
 
+  static SpiderCipherCard SpiderCipherTagCard(SpiderCipherDeck *deck);
+
   static SpiderCipherCard SpiderCipherNoiseCard(SpiderCipherDeck *deck);
 
   static SpiderCipherCard SpiderCipherCutCard(SpiderCipherDeck *deck,
@@ -45,9 +47,14 @@ extern "C" {
     return 1;
   }
 
-  SpiderCipherCard SpiderCipherScramble(SpiderCipherDeck *deck,
-					SpiderCipherCard clear) {
-    return (clear + SpiderCipherNoiseCard(deck))
+  void SpiderCipherCopyDeck(SpiderCipherDeck *from,
+    SpiderCipherDeck *to) {
+      memcpy(to,from,sizeof(SpiderCipherDeck));
+  }
+
+  uint8_t SpiderCipherScramble(SpiderCipherDeck *deck,
+				 SpiderCipherCard clear) {
+    return (clear+SpiderCipherNoiseCard(deck))
       % SPIDER_CIPHER_CARDS;
   }
 
@@ -60,17 +67,26 @@ extern "C" {
   void SpiderCipherAdvanceDeck(SpiderCipherDeck *deck,
 			       SpiderCipherCard clear,
 			       SpiderCipherDeck *spare) {
-    SpiderCipherBackFrontShuffleDeck(deck,spare);
-    SpiderCipherCutDeck(spare,SpiderCipherCutCard(spare,clear),deck);
+    SpiderCipherCard tagCard = SpiderCipherTagCard(deck);
+    SpiderCipherCard cutCard = SpiderCipherCutCard(deck,clear);
+    SpiderCipherCutDeck(deck,tagCard,spare);
+    SpiderCipherBackFrontShuffleDeck(spare,deck);
+    SpiderCipherCutDeck(deck,cutCard,spare);
+    SpiderCipherCopyDeck(spare,deck);
+    tagCard=cutCard=0;
   }
   
-  static SpiderCipherCard SpiderCipherCutCard(SpiderCipherDeck *deck,
-				       SpiderCipherCard clear) {
-    return (clear+deck->cards[SPIDER_CIPHER_CUT_ZTH])%SPIDER_CIPHER_CARDS;
+  static SpiderCipherCard SpiderCipherTagCard(SpiderCipherDeck *deck) {
+    return (deck->cards[SPIDER_CIPHER_TAG_ZTH]+SPIDER_CIPHER_TAG_ADD)%SPIDER_CIPHER_CARDS;
   }
 
   static SpiderCipherCard SpiderCipherNoiseCard(SpiderCipherDeck *deck) {
-    return deck->cards[(deck->ats[(deck->cards[SPIDER_CIPHER_TAG_ZTH]+SPIDER_CIPHER_TAG_ADD)%SPIDER_CIPHER_CARDS]+1)%SPIDER_CIPHER_CARDS];
+    return deck->cards[(deck->ats[SpiderCipherTagCard(deck)]+1)%SPIDER_CIPHER_CARDS];
+  }
+
+  static SpiderCipherCard SpiderCipherCutCard(SpiderCipherDeck *deck,
+				       SpiderCipherCard clear) {
+    return (clear+deck->cards[SPIDER_CIPHER_CUT_ZTH])%SPIDER_CIPHER_CARDS;
   }
 
   static void SpiderCipherCutDeck(SpiderCipherDeck *input,
@@ -114,7 +130,7 @@ extern "C" {
 	out[i]=at;
       }
       was=eo=at=0;
-      in=out=NULL;
+      in=out=0;
     }
   }
 #ifdef __cplusplus
