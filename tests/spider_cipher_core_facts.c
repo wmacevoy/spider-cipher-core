@@ -752,6 +752,70 @@ FACTS(NoiseCardUniform) {
   }
 }
 
+int KnownPlainConsistent(Deck *deck, Card clear, Card scramble) {
+   return SpiderCipherScramble(deck,clear) == scramble;
+}
+
+#include <stdio.h>
+
+int randrange(int a, int b) {
+   static FILE *dev = 0;
+   if (dev == 0) dev = fopen("/dev/random","rb");
+   if (b <= a) return a;
+   unsigned n = (b-a+1);
+   unsigned x;
+   // perfect binning
+   do {
+     assert(fread(&x,sizeof(x),1,dev)==1);
+   } while (x <= ((~0U) % n));
+   return a + (x%n);
+}
+
+FACTS(RandRange) {
+  const int a = 3;
+  const int b = 9;
+  int n = 10000;
+  int counts[b+1];
+  double p = 1.0/(b-a+1);
+  double q = 1.0-p;
+  double mu = n*p;
+  double sigma = sqrt(n*p*q);
+  for (int i=0; i<=b; ++i) {
+     counts[i]=0;
+  }
+  for (int i=0; i<n; ++i) {
+     ++counts[(randrange(3,9))];
+  }
+
+   for (int i=0; i<=10; ++i) {
+     if (i < 3 || i > 9) {
+       FACT(counts[i],==,0);
+     } else {
+       double z =(counts[i]-mu)/sigma;
+       FACT(fabs(z),<=,3.0);
+     }
+   }
+}
+
+void shuffle(Deck *deck) {
+  Permutation p;
+  for (int i=0; i<CARDS; ++i) {
+    p[i]=i;
+  }
+  for (int i=0; i<CARDS; ++i) {
+     int j = randrange(i,CARDS-1);
+     int tmp = p[i];
+     p[i]=p[j];
+     p[j]=tmp;
+   }
+   deckMix(deck,p);
+}
+
+FACTS(KnownPlainAvg) {
+
+
+}
+
 // pseudo-shuffle on cut at location cutAt
 void P(Deck *deck,int cutAt) {
   PseudoShuffleCutAt(deck,cutAt);
